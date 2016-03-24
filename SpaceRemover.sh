@@ -1,7 +1,9 @@
 #!/usr/local/bin/bash -e 
 
+SOURCE=01-Source/*
 
-for i in /mnt/hawking/dvdstorage/01-Source/*
+
+for i in $SOURCE
 do
 
 #this remove the last character in each item
