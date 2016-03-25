@@ -1,29 +1,36 @@
-#!/bin/bash -e
+#!/usr/local/bin/bash -e
 
-OUTPUT_DIR="/mnt/dvdstorage/m4v"
-PROCESSING_DIR="/mnt/dvdstorage/Processing"
-SOURCE_DIR="/mnt/dvdstorage/DVDs"
-COMPLETED_DIR="/mnt/dvdstorage/Completed"
-PLEX_DIR="/mnt/dvdstorage/Completed"
-FAILED_DIR="/mnt/dvdstorage/Failed"
+#source file location 
+SOURCE_DIR="/mnt/01-Source"
+
+#handbrake processing folders 
+PROCESSING_DIR="/mnt/02-Processing/Processing_Source"
+OUTPUT_DIR="/mnt/02-Processing"
+
+#destination folders
+COMPLETED_DIR="/mnt/03-Completed/Completed_Source"
+MKV_DIR="/mnt/03-Completed/"
+
+FAILED_DIR="/mnt/04-Failed"
+
 HANDBRAKE_PRESET="AppleTV 3"
 EXTENSION="mkv"
-LOGS="/mnt/dvdstorage/ripdvd.log"
+LOGS="/mnt/Transcode_Source_to_AppleTV3.log"
 
-echo "Running Rip DVD 2";
+echo "**** Running Transcode to AppleTV 3 Handbrake script ****";
 
 function stageFiles()
 {
- # grab each DVD folder in the source directory 
- # check if DVD has already been encoded here
+ # grab source file or folder from the source directory 
+   # check if file or folder has already been encoded before
    if [ -z "$(cat $LOGS | grep $1)" ]; 
    then
     echo "Copying "$1" to Processing directory"
     mv $SOURCE_DIR/$1 $PROCESSING_DIR/$1
     NEW=1;
    else 
-    echo "Movie "$1" has already been processed. Moving to Completed directory."
-    mv $SOURCE_DIR/$1 $COMPLETED_DIR/$1
+    echo "Source "$1" has already been processed. Moving to failed directory."
+    mv $SOURCE_DIR/$1 $FAILED_DIR/$1
     NEW=0;
   fi
 }
@@ -33,23 +40,27 @@ function encodeFiles()
 {
    if [ $NEW -eq 1 ];
    then
-    # send dvd to handbrake using 2 threads and AppleTV 3 settings
-    echo "Starting Handbrake CLI"
-    HandBrakeCLI --native-language eng -sF=1 --subtitle-burned --min-duration 25 -i $PROCESSING_DIR/$1 -o $OUTPUT_DIR/$1.$EXTENSION -x threads=4 --preset="AppleTV 3" 
+    # send source to handbrake using 2 threads and AppleTV 3 settings
+    echo "*** Starting Handbrake CLI ***"
+    HandBrakeCLI --native-language eng -sF=1 --subtitle-burned --main-feature --min-duration 25 -x threads=2 -i $PROCESSING_DIR/$1 -o $OUTPUT_DIR/$1.$EXTENSION --preset="AppleTV 3" 
     # check for errors.
     if [ $? -eq 0 ];
      then
-     # move to completed folder
-     echo "Moving "$1" to completed directory"
+     # move processed file to completed folder
+     echo "Moving "$1" to completed transcoded directory and source to completed source directory."
+     mv $OUTPUT_DIR/$1.$EXTENSION $MKV_DIR/$1.$EXTENSION
+     # move source file to completed source folder
      mv $PROCESSING_DIR/$1 $COMPLETED_DIR/$1
     else 
      echo "Encoding failed, moving "$i" to Failed directory."
      mv $PROCESSING_DIR/$i $FAILED_DIR/$i 
+     # move stub of output file to failed directory
+     mv $OUTPUT_DIR/$1.$EXTENSION $FAILED_DIR/$1.$EXTENSION
      NEW=0;
     fi
 
    else
-    echo "Skipping "$1".";
+    echo "*** Skipping "$1" *** ";
    fi
 }
 
@@ -58,8 +69,8 @@ function deliverFiles()
    if [ $NEW -eq 1 ];
    then
    # move m4v to Plex once its completed
-   echo "Moving "$1" to Plex" 
-   cp -v $OUTPUT_DIR/$1.$EXTENSION $PLEX_DIR/$1.$EXTENSION
+   #echo "Moving "$1" to Plex" 
+   #cp -v $OUTPUT_DIR/$1.$EXTENSION $PLEX_DIR/$1.$EXTENSION
    echo $i" completed "$(date +%m-%d-%y_%H:%M:%S)  >> $LOGS;
    COUNT=$(($COUNT+1)); 
    else 
@@ -105,7 +116,7 @@ do
  
     stageFiles $i;
     encodeFiles $i;
-    #deliverFiles $i;
+    deliverFiles $i;
 done
 
 echo "Completed "$COUNT" new DVD Titles."
