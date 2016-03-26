@@ -17,6 +17,32 @@ HANDBRAKE_PRESET="AppleTV 3"
 EXTENSION="mkv"
 LOGS="/mnt/Transcode_Source_to_AppleTV3.log"
 
+
+
+# check if script is being run as root user
+
+if [ $(id -u) = 0 ] 
+then
+   echo "I see we running as root. Not exactly required, but will keep Handbrake from failing to read the files."
+else
+   echo "I see we are not running as root. Handbrake may stop if file permissions dont allow access."
+fi
+
+# getops - so user enters -n when executing and input is filtered here 
+
+while getops "n:" opt; 
+do 
+loop 
+ case $opt in
+   n) 
+    NAME="$OPTARG"
+    ;;
+   *) 
+    ;; #eventually reset folders, and primary setup
+ esac
+done 
+
+
 echo "**** Running Transcode to AppleTV 3 Handbrake script ****";
 
 function stageFiles()
